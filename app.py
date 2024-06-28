@@ -90,6 +90,5 @@ def update_output(n_clicks, n_intervals, device_id):
         return dash.no_update, dash.no_update, table
 
 if __name__ == '__main__':
-    app.run_server(debug=True)
-    port = int(os.environ.get("PORT", 5000))
-    app.run_server(debug=True, host='0.0.0.0', port=port)
+    app.run_server(host='0.0.0.0', port=int(os.environ.get('PORT', 8050)), debug=True)
+
