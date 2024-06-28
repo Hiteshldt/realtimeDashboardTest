@@ -5,6 +5,7 @@ from dash import dcc, html, Input, Output, State
 import requests
 from dash.exceptions import PreventUpdate
 import pandas as pd
+import os
 
 # Initialize Flask app
 server = Flask(__name__)
