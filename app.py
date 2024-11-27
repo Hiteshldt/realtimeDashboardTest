@@ -26,11 +26,7 @@ app.layout = dbc.Container([
     ]),
     dbc.Row([
         dbc.Col([
-            html.Div(
-                [dbc.Button("Relay 0", id="relay-button-0", color="secondary", className="mr-2", n_clicks=0)] +
-                [dbc.Button(f"Relay {i + 1}", id=f"relay-button-{i}", color="secondary", className="mr-2", n_clicks=0) for i in range(1, 16)],
-                id='relay-buttons'
-            )
+            html.Div([dbc.Button(f"Relay {i + 1}", id=f"relay-button-{i}", color="secondary", className="mr-2", n_clicks=0) for i in range(16)], id='relay-buttons')
         ])
     ]),
     dbc.Row([
@@ -43,6 +39,10 @@ app.layout = dbc.Container([
 # Global variable to hold the data
 data_df = pd.DataFrame()
 relay_states = [0] * 16  # Updated to handle 16 relays
+
+# Define relay names for Relay 2 to Relay 16
+relay_names = ["Pump", "Fan", "Light", "Heater", "Cooler", "Sprinkler", "Valve", "Motor", 
+               "Gate", "Sensor1", "Sensor2", "Alarm", "Relay13", "Relay14", "Relay15"]
 
 @app.callback(
     Output('interval-component', 'disabled'),
@@ -70,8 +70,7 @@ def update_output(n_clicks, n_intervals, *args):
 
         deviceid = args[-1]
         session['deviceid'] = deviceid
-        # url = f"https://q17jj3lu0l.execute-api.ap-south-1.amazonaws.com/dev/data/realtime?deviceid={deviceid}" FOR TEST SERVER
-        url = f"https://eezywisf5h.execute-api.ap-south-1.amazonaws.com/dev/data/realtime?deviceid={deviceid}" #For Production
+        url = f"https://eezywisf5h.execute-api.ap-south-1.amazonaws.com/prod/data/realtime?deviceid={deviceid}"
         response = requests.get(url)
 
         if response.text == "No data found for the given device ID":
@@ -79,7 +78,7 @@ def update_output(n_clicks, n_intervals, *args):
 
         data = response.json()
         filtered_data = {k: v for k, v in data.items() if k not in ['ts', 'did', 'ttlf']}
-        ordered_data = {'deviceid': filtered_data.pop('deviceid'), 'timestamp': filtered_data.pop('timestamp'), **filtered_data}
+        ordered_data = {'deviceid': filtered_data.pop('deviceid', None), 'timestamp': filtered_data.pop('timestamp', None), **filtered_data}
         data_df = pd.DataFrame([ordered_data])  # Reset DataFrame with new device ID data
 
         # Update relay states
@@ -88,13 +87,18 @@ def update_output(n_clicks, n_intervals, *args):
 
         table = dbc.Table.from_dataframe(data_df, striped=True, bordered=True, hover=True)
 
-        relay_buttons = [
-            dbc.Button("Auto" if i == 0 and relay_states[i] else "Manual" if i == 0 else f"Relay {i + 1}",
-                       id=f"relay-button-{i}",
-                       color="success" if relay_states[i] else "danger",
-                       className="mr-2")
-            for i in range(16)
-        ]
+        # Create relay buttons
+        relay_buttons = []
+        for i in range(16):
+            if i == 0:  # Special case for Relay 1
+                label = "Auto" if relay_states[i] == 1 else "Manual"
+            else:  # Use names from the array for Relay 2 to Relay 16
+                label = relay_names[i - 1] if i - 1 < len(relay_names) else f"Relay {i + 1}"
+
+            button_color = "success" if relay_states[i] else "danger"
+            relay_buttons.append(
+                dbc.Button(label, id=f"relay-button-{i}", color=button_color, className="mr-2")
+            )
 
         return False, "", table, relay_buttons
 
@@ -103,7 +107,7 @@ def update_output(n_clicks, n_intervals, *args):
             raise PreventUpdate
 
         deviceid = session.get('deviceid')
-        url = f"https://eezywisf5h.execute-api.ap-south-1.amazonaws.com/dev/data/realtime?deviceid={deviceid}"
+        url = f"https://eezywisf5h.execute-api.ap-south-1.amazonaws.com/prod/data/realtime?deviceid={deviceid}"
         response = requests.get(url)
 
         if response.text == "No data found for the given device ID":
@@ -111,7 +115,7 @@ def update_output(n_clicks, n_intervals, *args):
 
         data = response.json()
         filtered_data = {k: v for k, v in data.items() if k not in ['ts', 'did', 'ttlf']}
-        ordered_data = {'deviceid': filtered_data.pop('deviceid'), 'timestamp': filtered_data.pop('timestamp'), **filtered_data}
+        ordered_data = {'deviceid': filtered_data.pop('deviceid', None), 'timestamp': filtered_data.pop('timestamp', None), **filtered_data}
         new_data_df = pd.DataFrame([ordered_data], columns=data_df.columns)
         data_df = pd.concat([data_df, new_data_df], ignore_index=True)
 
@@ -121,13 +125,20 @@ def update_output(n_clicks, n_intervals, *args):
 
         table = dbc.Table.from_dataframe(data_df, striped=True, bordered=True, hover=True)
 
-        relay_buttons = [
-            dbc.Button("Auto" if i == 0 and relay_states[i] else "Manual" if i == 0 else f"Relay {i + 1}",
-                       id=f"relay-button-{i}",
-                       color="success" if relay_states[i] else "danger",
-                       className="mr-2")
-            for i in range(16)
-        ]
+        # Create relay buttons
+        relay_buttons = []
+        for i in range(16):
+            # Handle Relay 1 separately
+            if i == 0:
+                label = "Auto" if relay_states[i] == 1 else "Manual"
+            else:
+                # Fetch custom names from relay_names, fallback to generic "Relay X"
+                label = relay_names[i - 1] if (i - 1) < len(relay_names) else f"Relay {i + 1}"
+
+            button_color = "success" if relay_states[i] else "danger"
+            relay_buttons.append(
+                dbc.Button(label, id=f"relay-button-{i}", color=button_color, className="mr-2")
+            )
 
         return dash.no_update, dash.no_update, table, relay_buttons
 
@@ -140,24 +151,24 @@ def update_output(n_clicks, n_intervals, *args):
         relay_states[relay_button_index] = new_state
 
         deviceid = session.get('deviceid')
-        url = f"https://eezywisf5h.execute-api.ap-south-1.amazonaws.com/dev/commands?deviceid={deviceid}"
-        
-        # Adjust the relay name for the API request (incremented by 1)
-        relay_name = f"relay{relay_button_index + 1}"
-        body = {relay_name: new_state}
-        
+        url = f"https://eezywisf5h.execute-api.ap-south-1.amazonaws.com/prod/commands?deviceid={deviceid}"
+        body = {f"relay{relay_button_index + 1}": new_state}
         requests.post(url, json=body)
 
-        # Update button color and label
-        relay_buttons = [
-            dbc.Button("Auto" if i == 0 and relay_states[i] else "Manual" if i == 0 else f"Relay {i + 1}",
-                       id=f"relay-button-{i}",
-                       color="success" if relay_states[i] else "danger",
-                       className="mr-2")
-            for i in range(16)
-        ]
+        # Update button color
+        relay_buttons = []
+        for i in range(16):
+            if i == 0:  # Special case for Relay 1
+                label = "Auto" if relay_states[i] == 1 else "Manual"
+            else:  # Use names from the array for Relay 2 to Relay 16
+                label = relay_names[i - 1] if i - 1 < len(relay_names) else f"Relay {i + 1}"
+
+            button_color = "success" if relay_states[i] else "danger"
+            relay_buttons.append(
+                dbc.Button(label, id=f"relay-button-{i}", color=button_color, className="mr-2")
+            )
 
         return dash.no_update, dash.no_update, dash.no_update, relay_buttons
 
 if __name__ == '__main__':
-    app.run_server(host='0.0.0.0', port=int(os.environ.get('PORT', 8050)), debug=True)
+    app.run_server(host='localhost', port=int(os.environ.get('PORT', 8050)), debug=True)
