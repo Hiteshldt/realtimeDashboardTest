@@ -41,8 +41,8 @@ data_df = pd.DataFrame()
 relay_states = [0] * 16  # Updated to handle 16 relays
 
 # Define relay names for Relay 2 to Relay 16
-relay_names = ["Pump", "Fan", "Light", "Heater", "Cooler", "Sprinkler", "Valve", "Motor", 
-               "Gate", "Sensor1", "Sensor2", "Alarm", "Relay13", "Relay14", "Relay15"]
+relay_names = ["PBR-1", "PBR-2", "DSC-1", "DSC-2", "DSC-3", "DSC-4", "UV-C", "M-PORT", 
+               "LED-S", "E-CNTRL-1", "E-CNTRL-2", "Relay-13", "Relay-14", "Relay-15", "Relay-16"]
 
 @app.callback(
     Output('interval-component', 'disabled'),
