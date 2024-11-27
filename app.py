@@ -171,4 +171,4 @@ def update_output(n_clicks, n_intervals, *args):
         return dash.no_update, dash.no_update, dash.no_update, relay_buttons
 
 if __name__ == '__main__':
-    app.run_server(host='localhost', port=int(os.environ.get('PORT', 8050)), debug=True)
+    app.run_server(host='0.0.0.0', port=int(os.environ.get('PORT', 8050)), debug=True)
