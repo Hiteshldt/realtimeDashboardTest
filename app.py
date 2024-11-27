@@ -26,7 +26,11 @@ app.layout = dbc.Container([
     ]),
     dbc.Row([
         dbc.Col([
-            html.Div([dbc.Button(f"Relay {i}", id=f"relay-button-{i}", color="secondary", className="mr-2", n_clicks=0) for i in range(12)], id='relay-buttons')
+            html.Div(
+                [dbc.Button("Relay 0", id="relay-button-0", color="secondary", className="mr-2", n_clicks=0)] +
+                [dbc.Button(f"Relay {i + 1}", id=f"relay-button-{i}", color="secondary", className="mr-2", n_clicks=0) for i in range(1, 16)],
+                id='relay-buttons'
+            )
         ])
     ]),
     dbc.Row([
@@ -38,7 +42,7 @@ app.layout = dbc.Container([
 
 # Global variable to hold the data
 data_df = pd.DataFrame()
-relay_states = [0] * 12
+relay_states = [0] * 16  # Updated to handle 16 relays
 
 @app.callback(
     Output('interval-component', 'disabled'),
@@ -47,7 +51,7 @@ relay_states = [0] * 12
     Output('relay-buttons', 'children'),
     Input('submit-button', 'n_clicks'),
     Input('interval-component', 'n_intervals'),
-    [Input(f'relay-button-{i}', 'n_clicks') for i in range(12)],
+    [Input(f'relay-button-{i}', 'n_clicks') for i in range(16)],
     State('device-id-input', 'value')
 )
 def update_output(n_clicks, n_intervals, *args):
@@ -66,7 +70,8 @@ def update_output(n_clicks, n_intervals, *args):
 
         deviceid = args[-1]
         session['deviceid'] = deviceid
-        url = f"https://q17jj3lu0l.execute-api.ap-south-1.amazonaws.com/dev/data/realtime?deviceid={deviceid}"
+        # url = f"https://q17jj3lu0l.execute-api.ap-south-1.amazonaws.com/dev/data/realtime?deviceid={deviceid}" FOR TEST SERVER
+        url = f"https://eezywisf5h.execute-api.ap-south-1.amazonaws.com/dev/data/realtime?deviceid={deviceid}" #For Production
         response = requests.get(url)
 
         if response.text == "No data found for the given device ID":
@@ -79,11 +84,17 @@ def update_output(n_clicks, n_intervals, *args):
 
         # Update relay states
         rel_value = int(ordered_data.get('rel', 0))
-        relay_states = [(rel_value >> i) & 1 for i in range(12)]
+        relay_states = [(rel_value >> i) & 1 for i in range(16)]
 
         table = dbc.Table.from_dataframe(data_df, striped=True, bordered=True, hover=True)
 
-        relay_buttons = [dbc.Button(f"Relay {i}", id=f"relay-button-{i}", color="success" if relay_states[i] else "danger", className="mr-2") for i in range(12)]
+        relay_buttons = [
+            dbc.Button("Auto" if i == 0 and relay_states[i] else "Manual" if i == 0 else f"Relay {i + 1}",
+                       id=f"relay-button-{i}",
+                       color="success" if relay_states[i] else "danger",
+                       className="mr-2")
+            for i in range(16)
+        ]
 
         return False, "", table, relay_buttons
 
@@ -92,7 +103,7 @@ def update_output(n_clicks, n_intervals, *args):
             raise PreventUpdate
 
         deviceid = session.get('deviceid')
-        url = f"https://q17jj3lu0l.execute-api.ap-south-1.amazonaws.com/dev/data/realtime?deviceid={deviceid}"
+        url = f"https://eezywisf5h.execute-api.ap-south-1.amazonaws.com/dev/data/realtime?deviceid={deviceid}"
         response = requests.get(url)
 
         if response.text == "No data found for the given device ID":
@@ -106,11 +117,17 @@ def update_output(n_clicks, n_intervals, *args):
 
         # Update relay states
         rel_value = int(ordered_data.get('rel', 0))
-        relay_states = [(rel_value >> i) & 1 for i in range(12)]
+        relay_states = [(rel_value >> i) & 1 for i in range(16)]
 
         table = dbc.Table.from_dataframe(data_df, striped=True, bordered=True, hover=True)
 
-        relay_buttons = [dbc.Button(f"Relay {i}", id=f"relay-button-{i}", color="success" if relay_states[i] else "danger", className="mr-2") for i in range(12)]
+        relay_buttons = [
+            dbc.Button("Auto" if i == 0 and relay_states[i] else "Manual" if i == 0 else f"Relay {i + 1}",
+                       id=f"relay-button-{i}",
+                       color="success" if relay_states[i] else "danger",
+                       className="mr-2")
+            for i in range(16)
+        ]
 
         return dash.no_update, dash.no_update, table, relay_buttons
 
@@ -123,12 +140,22 @@ def update_output(n_clicks, n_intervals, *args):
         relay_states[relay_button_index] = new_state
 
         deviceid = session.get('deviceid')
-        url = f"https://q17jj3lu0l.execute-api.ap-south-1.amazonaws.com/dev/commands?deviceid={deviceid}"
-        body = {f"relay{relay_button_index + 1}": new_state}
+        url = f"https://eezywisf5h.execute-api.ap-south-1.amazonaws.com/dev/commands?deviceid={deviceid}"
+        
+        # Adjust the relay name for the API request (incremented by 1)
+        relay_name = f"relay{relay_button_index + 1}"
+        body = {relay_name: new_state}
+        
         requests.post(url, json=body)
 
-        # Update button color
-        relay_buttons = [dbc.Button(f"Relay {i}", id=f"relay-button-{i}", color="success" if relay_states[i] else "danger", className="mr-2") for i in range(12)]
+        # Update button color and label
+        relay_buttons = [
+            dbc.Button("Auto" if i == 0 and relay_states[i] else "Manual" if i == 0 else f"Relay {i + 1}",
+                       id=f"relay-button-{i}",
+                       color="success" if relay_states[i] else "danger",
+                       className="mr-2")
+            for i in range(16)
+        ]
 
         return dash.no_update, dash.no_update, dash.no_update, relay_buttons
 
